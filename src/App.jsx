@@ -1,12 +1,17 @@
+// App.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { io } from "socket.io-client";
-import { API_BASE, SOCKET_URL } from "./api";
+// FIX: remove duplicate socket creation in this file.
+// import { io } from "socket.io-client";            // ❌ not needed here
+// import { SOCKET_URL } from "./api";               // ❌ not needed here
+import { API_BASE } from "./api";                   // ✅ keep API base
+import { socket } from "./socket";                  // ✅ use the singleton socket instance
 import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
-import laptopImg from "./assets/laptop.png"; 
+import laptopImg from "./assets/laptop.png";
 
-const socket = io(SOCKET_URL);
+// (Optional) one-time axios baseURL setup for cleaner calls
+axios.defaults.baseURL = API_BASE;
 
 function EmptyRightPane() {
   return (
@@ -41,27 +46,50 @@ export default function App() {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    axios.get(`${API_BASE}/api/messages`).then((res) => setMessages(res.data));
-    socket.on("newMessage", (m) => setMessages((p) => [...p, m]));
-    socket.on("statusUpdated", (u) =>
-      setMessages((p) => p.map((m) => (m.msg_id === u.msg_id ? u : m)))
-    );
+    // FIX: add try/catch so UI doesn't crash if API fails (e.g., bad envs)
+    (async () => {
+      try {
+        // With axios.defaults.baseURL set, we can use relative path:
+        const res = await axios.get("/api/messages");
+        setMessages(res.data || []);
+      } catch (err) {
+        console.error("Failed to load messages:", err?.message || err);
+        setMessages([]); // keep the UI stable even if request fails
+      }
+    })();
+
+    // FIX: use the singleton socket instance from ./socket
+    const onNewMessage = (m) => setMessages((prev) => [...prev, m]);
+    const onStatusUpdated = (u) =>
+      setMessages((prev) => prev.map((m) => (m.msg_id === u.msg_id ? u : m)));
+
+    socket.on("newMessage", onNewMessage);
+    socket.on("statusUpdated", onStatusUpdated);
+
+    // Cleanup listeners on unmount
     return () => {
-      socket.off("newMessage");
-      socket.off("statusUpdated");
+      socket.off("newMessage", onNewMessage);
+      socket.off("statusUpdated", onStatusUpdated);
     };
   }, []);
 
-    const sendMessage = async (wa_id, name, text) => {
+  const sendMessage = async (wa_id, name, text) => {
     const timestamp = new Date().toISOString();
     const msg_id = `local_${Date.now()}`;
-    await axios.post(`${API_BASE}/api/messages/insert`, {
-      wa_id,
-      name,
-      text,
-      timestamp,
-      msg_id,
-    });
+
+    try {
+      // Using defaults.baseURL, no need to interpolate API_BASE every time
+      await axios.post("/api/messages/insert", {
+        wa_id,
+        name,
+        text,
+        timestamp,
+        msg_id,
+      });
+    } catch (err) {
+      console.error("Failed to send message:", err?.message || err);
+      // Optionally show a toast/error state here
+    }
   };
 
   const grouped = useMemo(() => {
@@ -73,6 +101,7 @@ export default function App() {
         .filter((m) => m.wa_id === wa_id)
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
     }));
+
     if (!query.trim()) return rows;
     const q = query.toLowerCase();
     return rows.filter(
