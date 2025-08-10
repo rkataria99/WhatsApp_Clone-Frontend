@@ -1,16 +1,11 @@
-// App.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-// FIX: remove duplicate socket creation in this file.
-// import { io } from "socket.io-client";            // ❌ not needed here
-// import { SOCKET_URL } from "./api";               // ❌ not needed here
-import { API_BASE } from "./api";                   // ✅ keep API base
-import { socket } from "./socket";                  // ✅ use the singleton socket instance
+import { API_BASE } from "./api";                   
+import { socket } from "./socket";                  
 import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
 import laptopImg from "./assets/laptop.png";
 
-// (Optional) one-time axios baseURL setup for cleaner calls
 axios.defaults.baseURL = API_BASE;
 
 function EmptyRightPane() {
@@ -46,10 +41,8 @@ export default function App() {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    // FIX: add try/catch so UI doesn't crash if API fails (e.g., bad envs)
     (async () => {
       try {
-        // With axios.defaults.baseURL set, we can use relative path:
         const res = await axios.get("/api/messages");
         setMessages(res.data || []);
       } catch (err) {
@@ -58,7 +51,6 @@ export default function App() {
       }
     })();
 
-    // FIX: use the singleton socket instance from ./socket
     const onNewMessage = (m) => setMessages((prev) => [...prev, m]);
     const onStatusUpdated = (u) =>
       setMessages((prev) => prev.map((m) => (m.msg_id === u.msg_id ? u : m)));
@@ -66,7 +58,6 @@ export default function App() {
     socket.on("newMessage", onNewMessage);
     socket.on("statusUpdated", onStatusUpdated);
 
-    // Cleanup listeners on unmount
     return () => {
       socket.off("newMessage", onNewMessage);
       socket.off("statusUpdated", onStatusUpdated);
@@ -78,7 +69,6 @@ export default function App() {
     const msg_id = `local_${Date.now()}`;
 
     try {
-      // Using defaults.baseURL, no need to interpolate API_BASE every time
       await axios.post("/api/messages/insert", {
         wa_id,
         name,
@@ -88,7 +78,6 @@ export default function App() {
       });
     } catch (err) {
       console.error("Failed to send message:", err?.message || err);
-      // Optionally show a toast/error state here
     }
   };
 
