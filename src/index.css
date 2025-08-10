@@ -2,7 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* simple scroll + layout tweaks */
-html, body, #root {
-  height: 100%;
+/* App fill */
+html, body, #root { height: 100%; }
+
+/* Subtle WhatsApp-like chat wallpaper */
+.chat-bg {
+  /* light beige with subtle pattern */
+  background-color: #efeae2; /* WA web vibe */
+  background-image:
+    radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-position: 0 0, 12px 12px;
+  background-size: 24px 24px;
+}
+
+/* Hide default input outlines for a cleaner look */
+input:focus {
+  outline: none;
+}
+
+/* Nice thin scrollbar for chat lists */
+::-webkit-scrollbar {
+  width: 8px; height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 8px;
 }
